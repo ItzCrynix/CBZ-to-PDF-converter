@@ -4,22 +4,41 @@ from PIL import Image
 
 class CBZConverter():
     def __init__(self):
-        pass
+        self.convertion_table = {
+            "Writer": "Author",
+            "Penciller": "Author",
+            "Genre": "Keywords",
+            "Series": "Title",
+            "Title": "Subject"
+        }
 
-    def convert_xml_data_to_pdf_metadata(self, zip_file: zipfile.ZipFile) -> dict[str, str]:
+    def __convert_xml_data_to_pdf_metadata(self, zip_file: zipfile.ZipFile) -> dict[str, str]:
         xml_file_name = [file for file in zip_file.namelist() if file.endswith(".xml")][0]
+        manga_metadata = {
+            "/Creator": "ItzCrynix"
+        }
             
         # Gets the xml data and parses it to fit the pdf metadata
-        with zip_file.open(xml_file_name) as xml_file:
+        with zip_file.open(xml_file_name, "r") as xml_file:
             parsed_xml_file = ET.parse(xml_file).getroot()
-        
-        return
 
-    def get_images_from_zip(self, zip_file:zipfile.ZipFile) -> list[Image.Image]:
+            for item in parsed_xml_file:
+                if converted_key := self.convertion_table.get(item.tag):
+                    manga_metadata[f"/{converted_key}"] = item.text
+                else:
+                    manga_metadata[f"/{item.tag}"] = item.text
+        
+        return manga_metadata
+
+    def __get_images_from_zip(self, zip_file:zipfile.ZipFile) -> list[Image.Image]:
         image_extensions = (".jpg", ".jpeg", ".png", ".webp")
+
+        # Take only the chapter images
         manga_chapters = [file_name for file_name in zip_file.namelist() if file_name.lower().endswith(image_extensions)]
+        manga_chapters.sort()
 
         manga_images = []
+        # Iterates through the file names and saves the binary of the image
         for chapter in manga_chapters:
             with zip_file.open(chapter) as image:
                 image_bytes = io.BytesIO(image.read())
@@ -38,7 +57,7 @@ class CBZConverter():
 
             # Opens the zip file in read mode
             with zipfile.ZipFile(file_name, "r") as zip_file:
-                    images = self.get_images_from_zip(zip_file)
+                    images = self.__get_images_from_zip(zip_file)
                     
                     if not images:
                         raise FileNotFoundError
@@ -51,10 +70,10 @@ class CBZConverter():
                     for page in manga_images_pdf.pages:
                         manga_final_pdf.add_page(page)
 
-                    manga_metadata = self.convert_xml_data_to_pdf_metadata(zip_file)
+                    manga_metadata = self.__convert_xml_data_to_pdf_metadata(zip_file)
                     manga_final_pdf.add_metadata(manga_metadata)
 
-                    manga_final_pdf.write(f"{manga_metadata.get("Series")} - Capitulo {manga_metadata.get("Number")}.pdf")
+                    manga_final_pdf.write(f"{manga_metadata.get("/Title")} - Capitulo {manga_metadata.get("/Number")}.pdf")
 
         except ValueError:
             print("Error: Invalid file type")
@@ -62,9 +81,3 @@ class CBZConverter():
             print("Error: No images was found inside the zip file")
         except:
             print("Error: Unable to create the pdf file")
-
-
-if __name__ == "__main__":
-    new_file = "ProxyONE Scanlator_Vol.6 Ch.30.5 - A História de F. Valentine.cbz"
-
-    CBZConverter.convert_zip_to_pdf(new_file)
