@@ -1,4 +1,4 @@
-import zipfile, pypdf, io
+import zipfile, pypdf, io, datetime
 import xml.etree.ElementTree as ET
 from PIL import Image
 
@@ -14,8 +14,13 @@ class CBZConverter():
 
     def __convert_xml_data_to_pdf_metadata(self, zip_file: zipfile.ZipFile) -> dict[str, str]:
         xml_file_name = [file for file in zip_file.namelist() if file.endswith(".xml")][0]
+
+        creation_time = datetime.datetime.now().strftime("D\072%Y%m%d%H%M%S-03'00'")
         manga_metadata = {
-            "/Creator": "ItzCrynix"
+            "/Producer": "ItzCrynix",
+            "/Creator": "CBZ Converter",
+            "/CreationDate": creation_time,
+            "/ModDate": creation_time
         }
             
         # Gets the xml data and parses it to fit the pdf metadata
@@ -81,3 +86,10 @@ class CBZConverter():
             print("Error: No images was found inside the zip file")
         except:
             print("Error: Unable to create the pdf file")
+
+
+if __name__ == "__main__":
+    new_file = "ProxyONE Scanlator_Vol.6 Ch.30.5 - A História de F. Valentine.cbz"
+
+    converter = CBZConverter()
+    converter.convert_zip_to_pdf(new_file)
