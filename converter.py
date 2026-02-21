@@ -1,5 +1,6 @@
-import zipfile, pypdf, io, datetime
+import zipfile, pypdf, io, re, os
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from PIL import Image
 
 class CBZConverter():
@@ -12,10 +13,60 @@ class CBZConverter():
             "Title": "Subject"
         }
 
+    def convert_zip_to_pdf(self, file_name: str) -> bool:
+        try:
+            # checks if the file extension is a compressed folder
+            if not (file_name.endswith(".zip") or file_name.endswith(".cbz")):
+                raise ValueError
+
+            # Opens the zip file in read mode
+            with zipfile.ZipFile(file_name, "r") as zip_file:
+                    images = self.__get_images_from_zip(zip_file)
+                    
+                    if not images:
+                        raise FileNotFoundError
+                    
+                    # Before this, i was saving a temporary file in the pc before giving the final result
+                    temp_buffer = io.BytesIO()
+                    images[0].save(temp_buffer, format="PDF", save_all=True, append_images=images[1:])
+                    temp_buffer.seek(0)
+
+                    manga_images_pdf = pypdf.PdfReader(temp_buffer)
+                    manga_final_pdf = pypdf.PdfWriter()
+
+                    for page in manga_images_pdf.pages:
+                        manga_final_pdf.add_page(page)
+
+                    manga_metadata = self.__convert_xml_data_to_pdf_metadata(zip_file)
+                    manga_final_pdf.add_metadata(manga_metadata)
+
+                    manga_final_pdf.write(self.__get_clean_manga_title_from_metadata(manga_metadata))
+
+                    temp_buffer.close()
+
+                    return True
+
+        except:
+            return False
+
+    def __get_clean_manga_title_from_metadata(self, metadata: dict[str, str]) -> str:
+        # Essentialy removes any character that can cause an error while trying to save the file
+        clean_title = re.sub(r"(\"|\'|\||:|\?|\\|\/|\(.+\))", "", metadata.get("/Title", "Manga")).strip()
+
+        clean_chapter = metadata.get("/Number", "0").strip()
+
+        if not os.path.exists("./Converted"):
+            os.mkdir("./Converted")
+
+        if not os.path.exists(f'./Converted/{clean_title}'):
+            os.mkdir(f'./Converted/{clean_title}')
+
+        return f"./Converted/{clean_title}/{clean_title} - Capitulo {clean_chapter}.pdf"
+
     def __convert_xml_data_to_pdf_metadata(self, zip_file: zipfile.ZipFile) -> dict[str, str]:
         xml_file_name = [file for file in zip_file.namelist() if file.endswith(".xml")][0]
 
-        creation_time = datetime.datetime.now().strftime("D\072%Y%m%d%H%M%S-03'00'")
+        creation_time = datetime.now().strftime("D\072%Y%m%d%H%M%S-03'00'")
         manga_metadata = {
             "/Producer": "ItzCrynix",
             "/Creator": "CBZ Converter",
@@ -52,44 +103,3 @@ class CBZConverter():
                 manga_images.append(converted_image)
 
         return manga_images
-                
-    
-    def convert_zip_to_pdf(self, file_name: str) -> None:
-        try:
-            # checks if the file extension is a compressed folder
-            if not (file_name.endswith(".zip") or file_name.endswith(".cbz")):
-                raise ValueError
-
-            # Opens the zip file in read mode
-            with zipfile.ZipFile(file_name, "r") as zip_file:
-                    images = self.__get_images_from_zip(zip_file)
-                    
-                    if not images:
-                        raise FileNotFoundError
-                    
-                    images[0].save("temp.pdf", save_all=True, append_images=images[1:])
-
-                    manga_images_pdf = pypdf.PdfReader("temp.pdf")
-                    manga_final_pdf = pypdf.PdfWriter()
-
-                    for page in manga_images_pdf.pages:
-                        manga_final_pdf.add_page(page)
-
-                    manga_metadata = self.__convert_xml_data_to_pdf_metadata(zip_file)
-                    manga_final_pdf.add_metadata(manga_metadata)
-
-                    manga_final_pdf.write(f"{manga_metadata.get("/Title")} - Capitulo {manga_metadata.get("/Number")}.pdf")
-
-        except ValueError:
-            print("Error: Invalid file type")
-        except FileNotFoundError:
-            print("Error: No images was found inside the zip file")
-        except:
-            print("Error: Unable to create the pdf file")
-
-
-if __name__ == "__main__":
-    new_file = "ProxyONE Scanlator_Vol.6 Ch.30.5 - A História de F. Valentine.cbz"
-
-    converter = CBZConverter()
-    converter.convert_zip_to_pdf(new_file)
