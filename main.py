@@ -6,6 +6,7 @@ if __name__ == "__main__":
 
     converter = CBZConverter()
 
+    # Should i make this part of the Converter object? Maybe...
     if os.path.isdir(response):
         files = []
         for _, _, filenames in os.walk(response):
@@ -15,8 +16,16 @@ if __name__ == "__main__":
         converted_files = 0
         total_files = len(files)
         for file in files:
-            print(f'Converting: {file} ({converted_files}/{total_files})\n')
+            print(f'Converting: {file}', end="")
+
             if converter.convert_zip_to_pdf(f'{response}/{file}'):
+                print(" -> Success")
                 converted_files += 1
+            else:
+                print(" -> Failed")
+        
+        print(f"Converted: {converted_files}/{total_files} ({(converted_files / total_files) * 100}%)")
+  
     else:
-        converter.convert_zip_to_pdf(response)
+        if converter.convert_zip_to_pdf(response):
+            print(f"Converted: {response}")

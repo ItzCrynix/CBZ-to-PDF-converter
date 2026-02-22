@@ -26,7 +26,7 @@ class CBZConverter():
                     if not images:
                         raise FileNotFoundError
                     
-                    # Before this, i was saving a temporary file in the pc before giving the final result
+                    # Saves a temporary buffer of the file, before adding the metadata
                     temp_buffer = io.BytesIO()
                     images[0].save(temp_buffer, format="PDF", save_all=True, append_images=images[1:])
                     temp_buffer.seek(0)
@@ -55,6 +55,8 @@ class CBZConverter():
 
         clean_chapter = metadata.get("/Number", "0").strip()
 
+        # I think everyone agrees that saving ALL the files from a directory in the base path might not be a good ideia
+        # so i put this code here to create a separate directory for the files
         if not os.path.exists("./Converted"):
             os.mkdir("./Converted")
 
@@ -67,6 +69,8 @@ class CBZConverter():
         xml_file_name = [file for file in zip_file.namelist() if file.endswith(".xml")][0]
 
         creation_time = datetime.now().strftime("D\072%Y%m%d%H%M%S-03'00'")
+
+        # You can change the Producer here if you want, this shows up in the properties of the file
         manga_metadata = {
             "/Producer": "ItzCrynix",
             "/Creator": "CBZ Converter",
